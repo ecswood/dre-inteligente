@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
@@ -7,8 +7,5 @@ export default defineConfig({
   base: '/',
   preview: {
     allowedHosts: ['dre.snitelecom.com.br', '147.15.57.112']
-  },
-  test: {
-    environment: 'node'
   }
 })
