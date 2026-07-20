@@ -144,6 +144,135 @@ export function extractMonthLabel(transactions: Transaction[]): { id: string; la
   };
 }
 
+const DRE_POSSIBLE_CATEGORIES = [
+  "1.2 Receita de Internet (SVA)",
+  "1.3 Taxas de Instalação e Adesão",
+  "1.4 Outras Receitas (Equipamentos)",
+  "1.4 Outras Receitas (Serviços Avulsos)",
+  "1.4 Outras Receitas (Diversas)",
+  "2.1 Tributos sobre Serviços (DARF)",
+  "4.1 Links Dedicados / Trânsito IP",
+  "4.2 Postes e Aluguel de Infraestrutura",
+  "4.5 Manutenção de Rede / Licenças Técnicas",
+  "6.1 Despesas Administrativas (Pessoal)",
+  "6.1 Despesas Administrativas (Infra)",
+  "6.1 Despesas Administrativas (Gerais)",
+  "6.3 Despesas Financeiras (Taxas Boleto)",
+  "6.3 Despesas Financeiras (Gerais)",
+  "6.3 Despesas Financeiras (Encargos)",
+  "6.4 Outras Despesas Operacionais",
+  "8.1 Amortização de Empréstimos e Financiamentos"
+];
+
+export function aggregateTransactions(transactions: Transaction[]): { lines: DRELine[]; totals: DREData['totals'] } {
+  const sums: Record<string, { entrada: number; saida: number }> = {};
+  DRE_POSSIBLE_CATEGORIES.forEach(cat => {
+    sums[cat] = { entrada: 0, saida: 0 };
+  });
+
+  transactions.forEach(t => {
+    if (t.categoriaDRE !== "EXCLUÍDO DA DRE" && t.categoriaDRE !== "NÃO MAPEADO" && sums[t.categoriaDRE]) {
+      if (t.entrada !== null) sums[t.categoriaDRE].entrada += t.entrada;
+      if (t.saida !== null) sums[t.categoriaDRE].saida += t.saida;
+    }
+  });
+
+  const getEntrada = (cat: string) => sums[cat]?.entrada || 0;
+  const getSaida = (cat: string) => Math.abs(sums[cat]?.saida || 0);
+
+  const recInternet = getEntrada("1.2 Receita de Internet (SVA)");
+  const recAdesao = getEntrada("1.3 Taxas de Instalação e Adesão");
+  const recEquip = getEntrada("1.4 Outras Receitas (Equipamentos)");
+  const recServicos = getEntrada("1.4 Outras Receitas (Serviços Avulsos)");
+  const recDiversas = getEntrada("1.4 Outras Receitas (Diversas)");
+  const receitaBruta = recInternet + recAdesao + recEquip + recServicos + recDiversas;
+
+  const deducoes = getSaida("2.1 Tributos sobre Serviços (DARF)");
+
+  const rol = receitaBruta - deducoes;
+
+  const cLink = getSaida("4.1 Links Dedicados / Trânsito IP");
+  const cInfra = getSaida("4.2 Postes e Aluguel de Infraestrutura");
+  const cManut = getSaida("4.5 Manutenção de Rede / Licenças Técnicas");
+  const csp = cLink + cInfra + cManut;
+
+  const margemContrib = rol - csp;
+
+  const dPessoal = getSaida("6.1 Despesas Administrativas (Pessoal)");
+  const dInfra = getSaida("6.1 Despesas Administrativas (Infra)");
+  const dGerais = getSaida("6.1 Despesas Administrativas (Gerais)");
+  const dFinBoleto = getSaida("6.3 Despesas Financeiras (Taxas Boleto)");
+  const dFinGerais = getSaida("6.3 Despesas Financeiras (Gerais)");
+  const dFinEncargos = getSaida("6.3 Despesas Financeiras (Encargos)");
+  const dOutras = getSaida("6.4 Outras Despesas Operacionais");
+  const opex = dPessoal + dInfra + dGerais + dFinBoleto + dFinGerais + dFinEncargos + dOutras;
+
+  const ebitda = margemContrib - opex;
+
+  const amortizacao = getSaida("8.1 Amortização de Empréstimos e Financiamentos");
+
+  const liquido = ebitda - amortizacao;
+
+  const getPct = (val: number) => (receitaBruta > 0 ? (val / receitaBruta) : 0);
+
+  const lines: DRELine[] = [
+    { account: "1. RECEITA OPERACIONAL BRUTA", value: receitaBruta, pct: getPct(receitaBruta), style: 'group' },
+    { account: "  1.2 Receita de Internet (SVA)", value: recInternet, pct: getPct(recInternet), style: 'subgroup' },
+    { account: "  1.3 Taxas de Instalação e Adesão", value: recAdesao, pct: getPct(recAdesao), style: 'subgroup' },
+    { account: "  1.4 Outras Receitas (Equipamentos)", value: recEquip, pct: getPct(recEquip), style: 'subgroup' },
+    { account: "  1.4 Outras Receitas (Serviços Avulsos)", value: recServicos, pct: getPct(recServicos), style: 'subgroup' },
+    { account: "  1.4 Outras Receitas (Diversas)", value: recDiversas, pct: getPct(recDiversas), style: 'subgroup' },
+    { account: "  (=) Total Receita Bruta", value: receitaBruta, pct: getPct(receitaBruta), style: 'total' },
+
+    { account: "2. (-) DEDUÇÕES E TRIBUTOS", value: deducoes, pct: getPct(deducoes), style: 'group' },
+    { account: "  2.1 Tributos sobre Serviços (DARF)", value: deducoes, pct: getPct(deducoes), style: 'subgroup' },
+    { account: "  (=) Total Deduções", value: deducoes, pct: getPct(deducoes), style: 'total' },
+
+    { account: "3. (=) RECEITA OPERACIONAL LÍQUIDA (ROL)", value: rol, pct: getPct(rol), style: 'net_income' },
+
+    { account: "4. (-) CUSTOS DOS SERVIÇOS PRESTADOS (CSP)", value: csp, pct: getPct(csp), style: 'group' },
+    { account: "  4.1 Links Dedicados / Trânsito IP", value: cLink, pct: getPct(cLink), style: 'subgroup' },
+    { account: "  4.2 Postes e Aluguel de Infraestrutura", value: cInfra, pct: getPct(cInfra), style: 'subgroup' },
+    { account: "  4.5 Manutenção de Rede / Licenças Técnicas", value: cManut, pct: getPct(cManut), style: 'subgroup' },
+    { account: "  (=) Total Custos (CSP)", value: csp, pct: getPct(csp), style: 'total' },
+
+    { account: "5. (=) MARGEM DE CONTRIBUIÇÃO / LUCRO BRUTO", value: margemContrib, pct: getPct(margemContrib), style: 'net_income' },
+
+    { account: "6. (-) DESPESAS OPERACIONAIS (OPEX)", value: opex, pct: getPct(opex), style: 'group' },
+    { account: "  6.1 Despesas Administrativas (Pessoal)", value: dPessoal, pct: getPct(dPessoal), style: 'subgroup' },
+    { account: "  6.1 Despesas Administrativas (Infra)", value: dInfra, pct: getPct(dInfra), style: 'subgroup' },
+    { account: "  6.1 Despesas Administrativas (Gerais)", value: dGerais, pct: getPct(dGerais), style: 'subgroup' },
+    { account: "  6.3 Despesas Financeiras (Taxas Boleto)", value: dFinBoleto, pct: getPct(dFinBoleto), style: 'subgroup' },
+    { account: "  6.3 Despesas Financeiras (Gerais)", value: dFinGerais, pct: getPct(dFinGerais), style: 'subgroup' },
+    { account: "  6.3 Despesas Financeiras (Encargos)", value: dFinEncargos, pct: getPct(dFinEncargos), style: 'subgroup' },
+    { account: "  6.4 Outras Despesas Operacionais", value: dOutras, pct: getPct(dOutras), style: 'subgroup' },
+    { account: "  (=) Total Despesas (OPEX)", value: opex, pct: getPct(opex), style: 'total' },
+
+    { account: "7. (=) RESULTADO OPERACIONAL (EBITDA)", value: ebitda, pct: getPct(ebitda), style: 'net_income' },
+
+    { account: "8. (-) AMORTIZAÇÃO E OUTROS", value: amortizacao, pct: getPct(amortizacao), style: 'group' },
+    { account: "  8.1 Amortização de Empréstimos e Financiamentos", value: amortizacao, pct: getPct(amortizacao), style: 'subgroup' },
+    { account: "  (=) Total Amortização", value: amortizacao, pct: getPct(amortizacao), style: 'total' },
+
+    { account: "9. (=) RESULTADO LÍQUIDO DO EXERCÍCIO", value: liquido, pct: getPct(liquido), style: 'net_income' }
+  ];
+
+  return {
+    lines,
+    totals: {
+      receitaBruta,
+      deducoes,
+      rol,
+      csp,
+      margemContrib,
+      opex,
+      ebitda,
+      amortizacao,
+      liquido
+    }
+  };
+}
+
 export function parseCaixaExcel(arrayBuffer: ArrayBuffer, customMapping?: Record<string, { category: string; action: 'include' | 'exclude' }>): DREData {
   const data = new Uint8Array(arrayBuffer);
   const workbook = XLSX.read(data, { type: 'array' });
@@ -176,34 +305,7 @@ export function parseCaixaExcel(arrayBuffer: ArrayBuffer, customMapping?: Record
   
   const transactions: Transaction[] = [];
   const unmappedSet = new Set<string>();
-  
-  const sums: Record<string, { entrada: number; saida: number }> = {};
-  
-  // Inicializar o dicionário de somas
-  const possibleCategories = [
-    "1.2 Receita de Internet (SVA)",
-    "1.3 Taxas de Instalação e Adesão",
-    "1.4 Outras Receitas (Equipamentos)",
-    "1.4 Outras Receitas (Serviços Avulsos)",
-    "1.4 Outras Receitas (Diversas)",
-    "2.1 Tributos sobre Serviços (DARF)",
-    "4.1 Links Dedicados / Trânsito IP",
-    "4.2 Postes e Aluguel de Infraestrutura",
-    "4.5 Manutenção de Rede / Licenças Técnicas",
-    "6.1 Despesas Administrativas (Pessoal)",
-    "6.1 Despesas Administrativas (Infra)",
-    "6.1 Despesas Administrativas (Gerais)",
-    "6.3 Despesas Financeiras (Taxas Boleto)",
-    "6.3 Despesas Financeiras (Gerais)",
-    "6.3 Despesas Financeiras (Encargos)",
-    "6.4 Outras Despesas Operacionais",
-    "8.1 Amortização de Empréstimos e Financiamentos"
-  ];
-  
-  possibleCategories.forEach(cat => {
-    sums[cat] = { entrada: 0, saida: 0 };
-  });
-  
+
   // Mapear cabeçalhos para colunas
   const colMap = {
     codigo: headers.indexOf('Código'),
@@ -327,123 +429,18 @@ export function parseCaixaExcel(arrayBuffer: ArrayBuffer, customMapping?: Record
       saida: saidaVal,
       categoriaDRE: isExcluded ? "EXCLUÍDO DA DRE" : categoriaDRE
     });
-    
-    // Se a categoria for válida e inclusa, somar
-    if (!isExcluded && categoriaDRE !== "NÃO MAPEADO" && sums[categoriaDRE]) {
-      if (entradaVal !== null) sums[categoriaDRE].entrada += entradaVal;
-      if (saidaVal !== null) sums[categoriaDRE].saida += saidaVal;
-    }
   });
   
-  // Calcular somas agregadas
-  const getEntrada = (cat: string) => sums[cat]?.entrada || 0;
-  const getSaida = (cat: string) => Math.abs(sums[cat]?.saida || 0); // Convertendo saídas negativas para positivo para a DRE
-  
-  // 1. Receita Bruta
-  const recInternet = getEntrada("1.2 Receita de Internet (SVA)");
-  const recAdesao = getEntrada("1.3 Taxas de Instalação e Adesão");
-  const recEquip = getEntrada("1.4 Outras Receitas (Equipamentos)");
-  const recServicos = getEntrada("1.4 Outras Receitas (Serviços Avulsos)");
-  const recDiversas = getEntrada("1.4 Outras Receitas (Diversas)");
-  const receitaBruta = recInternet + recAdesao + recEquip + recServicos + recDiversas;
-  
-  // 2. Deduções
-  const deducoes = getSaida("2.1 Tributos sobre Serviços (DARF)");
-  
-  // 3. ROL
-  const rol = receitaBruta - deducoes;
-  
-  // 4. Custos (CSP)
-  const cLink = getSaida("4.1 Links Dedicados / Trânsito IP");
-  const cInfra = getSaida("4.2 Postes e Aluguel de Infraestrutura");
-  const cManut = getSaida("4.5 Manutenção de Rede / Licenças Técnicas");
-  const csp = cLink + cInfra + cManut;
-  
-  // 5. Margem de Contribuição
-  const margemContrib = rol - csp;
-  
-  // 6. Despesas (OPEX)
-  const dPessoal = getSaida("6.1 Despesas Administrativas (Pessoal)");
-  const dInfra = getSaida("6.1 Despesas Administrativas (Infra)");
-  const dGerais = getSaida("6.1 Despesas Administrativas (Gerais)");
-  const dFinBoleto = getSaida("6.3 Despesas Financeiras (Taxas Boleto)");
-  const dFinGerais = getSaida("6.3 Despesas Financeiras (Gerais)");
-  const dFinEncargos = getSaida("6.3 Despesas Financeiras (Encargos)");
-  const dOutras = getSaida("6.4 Outras Despesas Operacionais");
-  const opex = dPessoal + dInfra + dGerais + dFinBoleto + dFinGerais + dFinEncargos + dOutras;
-  
-  // 7. EBITDA
-  const ebitda = margemContrib - opex;
-  
-  // 8. Amortização
-  const amortizacao = getSaida("8.1 Amortização de Empréstimos e Financiamentos");
-  
-  // 9. Líquido
-  const liquido = ebitda - amortizacao;
-  
-  // Construir as linhas da DRE estruturada com base na Receita Bruta (DRE Financeira)
-  const getPct = (val: number) => (receitaBruta > 0 ? (val / receitaBruta) : 0);
-  
-  const lines: DRELine[] = [
-    { account: "1. RECEITA OPERACIONAL BRUTA", value: receitaBruta, pct: getPct(receitaBruta), style: 'group' },
-    { account: "  1.2 Receita de Internet (SVA)", value: recInternet, pct: getPct(recInternet), style: 'subgroup' },
-    { account: "  1.3 Taxas de Instalação e Adesão", value: recAdesao, pct: getPct(recAdesao), style: 'subgroup' },
-    { account: "  1.4 Outras Receitas (Equipamentos)", value: recEquip, pct: getPct(recEquip), style: 'subgroup' },
-    { account: "  1.4 Outras Receitas (Serviços Avulsos)", value: recServicos, pct: getPct(recServicos), style: 'subgroup' },
-    { account: "  1.4 Outras Receitas (Diversas)", value: recDiversas, pct: getPct(recDiversas), style: 'subgroup' },
-    { account: "  (=) Total Receita Bruta", value: receitaBruta, pct: getPct(receitaBruta), style: 'total' },
-    
-    { account: "2. (-) DEDUÇÕES E TRIBUTOS", value: deducoes, pct: getPct(deducoes), style: 'group' },
-    { account: "  2.1 Tributos sobre Serviços (DARF)", value: deducoes, pct: getPct(deducoes), style: 'subgroup' },
-    { account: "  (=) Total Deduções", value: deducoes, pct: getPct(deducoes), style: 'total' },
-    
-    { account: "3. (=) RECEITA OPERACIONAL LÍQUIDA (ROL)", value: rol, pct: getPct(rol), style: 'net_income' },
-    
-    { account: "4. (-) CUSTOS DOS SERVIÇOS PRESTADOS (CSP)", value: csp, pct: getPct(csp), style: 'group' },
-    { account: "  4.1 Links Dedicados / Trânsito IP", value: cLink, pct: getPct(cLink), style: 'subgroup' },
-    { account: "  4.2 Postes e Aluguel de Infraestrutura", value: cInfra, pct: getPct(cInfra), style: 'subgroup' },
-    { account: "  4.5 Manutenção de Rede / Licenças Técnicas", value: cManut, pct: getPct(cManut), style: 'subgroup' },
-    { account: "  (=) Total Custos (CSP)", value: csp, pct: getPct(csp), style: 'total' },
-    
-    { account: "5. (=) MARGEM DE CONTRIBUIÇÃO / LUCRO BRUTO", value: margemContrib, pct: getPct(margemContrib), style: 'net_income' },
-    
-    { account: "6. (-) DESPESAS OPERACIONAIS (OPEX)", value: opex, pct: getPct(opex), style: 'group' },
-    { account: "  6.1 Despesas Administrativas (Pessoal)", value: dPessoal, pct: getPct(dPessoal), style: 'subgroup' },
-    { account: "  6.1 Despesas Administrativas (Infra)", value: dInfra, pct: getPct(dInfra), style: 'subgroup' },
-    { account: "  6.1 Despesas Administrativas (Gerais)", value: dGerais, pct: getPct(dGerais), style: 'subgroup' },
-    { account: "  6.3 Despesas Financeiras (Taxas Boleto)", value: dFinBoleto, pct: getPct(dFinBoleto), style: 'subgroup' },
-    { account: "  6.3 Despesas Financeiras (Gerais)", value: dFinGerais, pct: getPct(dFinGerais), style: 'subgroup' },
-    { account: "  6.3 Despesas Financeiras (Encargos)", value: dFinEncargos, pct: getPct(dFinEncargos), style: 'subgroup' },
-    { account: "  6.4 Outras Despesas Operacionais", value: dOutras, pct: getPct(dOutras), style: 'subgroup' },
-    { account: "  (=) Total Despesas (OPEX)", value: opex, pct: getPct(opex), style: 'total' },
-    
-    { account: "7. (=) RESULTADO OPERACIONAL (EBITDA)", value: ebitda, pct: getPct(ebitda), style: 'net_income' },
-    
-    { account: "8. (-) AMORTIZAÇÃO E OUTROS", value: amortizacao, pct: getPct(amortizacao), style: 'group' },
-    { account: "  8.1 Amortização de Empréstimos e Financiamentos", value: amortizacao, pct: getPct(amortizacao), style: 'subgroup' },
-    { account: "  (=) Total Amortização", value: amortizacao, pct: getPct(amortizacao), style: 'total' },
-    
-    { account: "9. (=) RESULTADO LÍQUIDO DO EXERCÍCIO", value: liquido, pct: getPct(liquido), style: 'net_income' }
-  ];
-  
+  const { lines, totals } = aggregateTransactions(transactions);
+
   const { id: monthId, label: monthLabel } = extractMonthLabel(transactions);
-  
+
   return {
     monthId,
     monthLabel,
     lines,
     transactions,
     unmapped: Array.from(unmappedSet),
-    totals: {
-      receitaBruta,
-      deducoes,
-      rol,
-      csp,
-      margemContrib,
-      opex,
-      ebitda,
-      amortizacao,
-      liquido
-    }
+    totals
   };
 }
