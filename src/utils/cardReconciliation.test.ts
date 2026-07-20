@@ -26,7 +26,7 @@ describe('reconciliarFatura', () => {
     const statement: CardStatement = {
       dataVencimento: '13/07/2026',
       valorTotal: 7491.06,
-      encargos: 62.41,
+      encargos: 100,
       itens: [
         { data: '19/06/2026', descricao: 'FUNILARIA E PINTURA', valor: 7428.65, valorDolar: null }
       ]
