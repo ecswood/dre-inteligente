@@ -11,6 +11,6 @@ export function encontrarLancamentoFatura(transactions: Transaction[], valorTota
   return transactions.filter(t =>
     CARD_INVOICE_PLANOS_DE_CONTA.includes(t.planoDeContas) &&
     t.saida !== null &&
-    Math.abs(t.saida - valorTotal) <= TOLERANCIA
+    Math.abs(Math.abs(t.saida) - valorTotal) <= TOLERANCIA
   );
 }

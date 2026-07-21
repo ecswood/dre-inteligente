@@ -14,6 +14,9 @@ export function substituirLancamentoFatura(
   dataFatura: string,
   mapping: Record<string, { category: string; action: 'include' | 'exclude' }>
 ): DREData {
+  const lancamentoOriginal = dreData.transactions.find(t => t.codigo === codigoLancamentoOriginal);
+  const sinalSaida = lancamentoOriginal && lancamentoOriginal.saida !== null && lancamentoOriginal.saida < 0 ? -1 : 1;
+
   const transacoesSemOriginal = dreData.transactions.filter(t => t.codigo !== codigoLancamentoOriginal);
 
   const novasTransacoes: Transaction[] = itens.map((item, index) => {
@@ -32,7 +35,7 @@ export function substituirLancamentoFatura(
       usuario: '',
       planoDeContas: item.planoDeContas,
       entrada: null,
-      saida: item.valor,
+      saida: sinalSaida * item.valor,
       categoriaDRE
     };
   });

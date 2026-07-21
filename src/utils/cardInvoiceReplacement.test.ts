@@ -89,6 +89,23 @@ describe('substituirLancamentoFatura', () => {
     expect(result.totals.csp).toBeCloseTo(189, 2);
   });
 
+  it('preserva o sinal negativo da saída quando o ERP grava saída como valor negativo (ex: -R$ 5.416,05)', () => {
+    const dreData = fakeDREData([
+      fakeTransaction({ codigo: 'FATURA-1', planoDeContas: '02.02.03.04 : FATURA CARTAO CREDITO', saida: -5416.05 })
+    ]);
+    const itens: CardImportItem[] = [
+      { data: '13/06/2026', descricao: 'STARLINK INTERNET', valor: 189, planoDeContas: '02.03.02.24 : Custo do Link' },
+      { data: '13/06/2026', descricao: 'ZP OLX MNICA DA088', valor: 300, planoDeContas: '02.03.02.07 : Pro-Labore' }
+    ];
+
+    const result = substituirLancamentoFatura(dreData, 'FATURA-1', itens, '13/06/2026', mapping);
+
+    expect(result.transactions[0].saida).toBeCloseTo(-189, 2);
+    expect(result.transactions[1].saida).toBeCloseTo(-300, 2);
+    // A DRE continua mostrando o total como positivo (aggregateTransactions já usa Math.abs na soma)
+    expect(result.totals.csp).toBeCloseTo(189, 2);
+  });
+
   it('preserva monthId e monthLabel do DREData original', () => {
     const dreData = fakeDREData([
       fakeTransaction({ codigo: 'FATURA-1', planoDeContas: '02.02.03.04 : FATURA CARTAO CREDITO', saida: 189 })

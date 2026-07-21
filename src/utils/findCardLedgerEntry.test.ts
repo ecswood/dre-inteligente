@@ -64,4 +64,15 @@ describe('encontrarLancamentoFatura', () => {
 
     expect(result).toHaveLength(1);
   });
+
+  it('encontra o lançamento mesmo quando o ERP grava a saída como valor negativo (ex: -R$ 5.416,05)', () => {
+    const transactions: Transaction[] = [
+      fakeTransaction({ codigo: 'A', planoDeContas: '02.02.03.04 : FATURA CARTAO CREDITO', saida: -5416.05 })
+    ];
+
+    const result = encontrarLancamentoFatura(transactions, 5416.05);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].codigo).toBe('A');
+  });
 });
