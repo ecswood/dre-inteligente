@@ -19,13 +19,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       return;
     }
 
-    // Login tradicional
-    // Credenciais padrão do sistema
-    if (email === 'admin' && password === '123') {
-      onLoginSuccess(email);
-      return;
-    }
-    
     // Credenciais cadastradas localmente pelo painel de controle
     const usersRaw = localStorage.getItem('app_users');
     const users = usersRaw ? JSON.parse(usersRaw) : {};
@@ -62,9 +55,9 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             <label>Usuário / E-mail</label>
             <div className="input-wrapper">
               <Mail className="input-icon" size={18} />
-              <input 
-                type="text" 
-                placeholder="admin ou seu e-mail"
+              <input
+                type="text"
+                placeholder="seu e-mail"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -89,10 +82,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             <span>Entrar</span>
           </button>
         </form>
-
-        <div style={{ marginTop: '24px', fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center' }}>
-          <span>Padrão: <b>admin</b> / <b>123</b></span>
-        </div>
       </div>
     </div>
   );

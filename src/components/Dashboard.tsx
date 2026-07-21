@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UploadCloud, FileSpreadsheet, Download, FileText, AlertTriangle, Play, HelpCircle, Activity } from 'lucide-react';
+import { UploadCloud, FileSpreadsheet, Download, FileText, AlertTriangle, HelpCircle, Activity } from 'lucide-react';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import FinancialRecommendations from './FinancialRecommendations';
 import { 
@@ -264,17 +264,6 @@ export default function Dashboard({
       ]
     };
   };
-  const handleLoadSample = async () => {
-    try {
-      const response = await fetch('/caixahistorico.xlsx');
-      if (!response.ok) throw new Error("Planilha de demonstração não encontrada!");
-      const blob = await response.blob();
-      handleFile(new File([blob], "caixahistorico_demonstracao.xlsx"));
-    } catch (err: any) {
-      setError("Não foi possível carregar a demonstração: " + err.message);
-    }
-  };
-
   return (
     <div>
       {/* Uploader Card */}
@@ -302,14 +291,6 @@ export default function Dashboard({
           </div>
           
           <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-            <button 
-              type="button" 
-              className="btn-secondary" 
-              onClick={(e) => { e.stopPropagation(); handleLoadSample(); }}
-            >
-              <Play size={14} />
-              <span>Carregar Planilha de Demonstração (Histórico Local)</span>
-            </button>
             {Object.keys(dreDatabase).length > 0 && (
               <button 
                 type="button" 

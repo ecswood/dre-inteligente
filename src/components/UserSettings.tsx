@@ -36,11 +36,6 @@ export default function UserSettings({ loggedInUser }: UserSettingsProps) {
       return;
     }
 
-    if (usernameTrimmed === 'admin') {
-      setError("O usuário 'admin' já existe como padrão do sistema.");
-      return;
-    }
-
     if (users[usernameTrimmed]) {
       setError("Este usuário já está cadastrado.");
       return;
@@ -209,20 +204,11 @@ export default function UserSettings({ loggedInUser }: UserSettingsProps) {
         {/* Lista de usuários cadastrados */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
           <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Usuários com Acesso</label>
-          
-          {/* Usuário padrão do sistema */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600 }}>admin</span>
-              <span className="badge-pill include" style={{ fontSize: '8px', padding: '1px 6px' }}>Padrão</span>
-            </div>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Acesso Total</span>
-          </div>
 
           {/* Usuários cadastrados no localStorage */}
           {Object.keys(users).length === 0 ? (
             <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px', fontStyle: 'italic' }}>
-              Nenhum outro usuário cadastrado localmente.
+              Nenhum usuário cadastrado localmente.
             </div>
           ) : (
             Object.keys(users).map(user => (
