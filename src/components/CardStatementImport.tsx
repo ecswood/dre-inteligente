@@ -180,7 +180,7 @@ export default function CardStatementImport({ dreDatabase, mapping, onSaveDREMon
         <div className="alert-card">
           <AlertTriangle size={18} />
           <span>
-            Não encontrei nenhum lançamento de fatura de cartão de R$ {formatCurrency(statement.valorTotal)}
+            Não encontrei nenhum lançamento de fatura de cartão de {formatCurrency(statement.valorTotal)}
             {' '}no caixa carregado. Confira se o mês certo já foi importado no Dashboard.
           </span>
         </div>
