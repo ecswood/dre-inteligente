@@ -55,4 +55,8 @@ describe('sugerirPlanoDeContas', () => {
   it('retorna null quando não há aprendizado nem padrão nativo', () => {
     expect(sugerirPlanoDeContas('ZP OLX MNICA DA088', {})).toBeNull();
   });
+
+  it('sugere o plano de encargos financeiros quando a descrição contém ENCARGOS (item sintético de reconciliação)', () => {
+    expect(sugerirPlanoDeContas('Encargos financeiros da fatura', {})).toBe('02.03.03.10 : JUROS UTILIZ.CH.ESPECIAL');
+  });
 });

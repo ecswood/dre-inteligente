@@ -31,7 +31,7 @@ export function sugerirPlanoDeContas(descricao: string, mapping: CardMerchantMap
     return 'DÉB.IOF : 02.03.09';
   }
 
-  if (chave.includes('JUROS') || chave.includes('MORA') || chave.includes('MULTA')) {
+  if (chave.includes('JUROS') || chave.includes('MORA') || chave.includes('MULTA') || chave.includes('ENCARGOS')) {
     return '02.03.03.10 : JUROS UTILIZ.CH.ESPECIAL';
   }
 
