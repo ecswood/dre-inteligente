@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, Settings, LogOut, ClipboardList } from 'lucide-react';
+import { BarChart3, Settings, LogOut, ClipboardList, CreditCard } from 'lucide-react';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import MappingEditor from './components/MappingEditor';
 import TransactionsList from './components/TransactionsList';
 import UserSettings from './components/UserSettings';
+import CardStatementImport from './components/CardStatementImport';
 import { DEFAULT_MAPPING, type DREData } from './utils/dreParser';
 
 export default function App() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'cardImport' | 'settings'>('dashboard');
   
   // Mapeamento carregado do LocalStorage ou padrão do DRE parser
   const [mapping, setMapping] = useState<Record<string, { category: string; action: 'include' | 'exclude' }>>({});
@@ -87,6 +88,13 @@ export default function App() {
     }
   };
 
+  const handleSaveDREMonth = (data: DREData) => {
+    const updatedDb = { ...dreDatabase, [data.monthId]: data };
+    setDreDatabase(updatedDb);
+    localStorage.setItem('isp_dre_database', JSON.stringify(updatedDb));
+    setDreData(data);
+  };
+
   const handleFoundUnmapped = (unmapped: string[]) => {
     setUnmappedAccounts(unmapped);
   };
@@ -121,7 +129,7 @@ export default function App() {
             <span>Dashboard</span>
           </button>
           
-          <button 
+          <button
             className={`nav-item ${activeTab === 'transactions' ? 'active' : ''}`}
             onClick={() => setActiveTab('transactions')}
           >
@@ -129,7 +137,15 @@ export default function App() {
             <span>Extrato Detalhado</span>
           </button>
 
-          <button 
+          <button
+            className={`nav-item ${activeTab === 'cardImport' ? 'active' : ''}`}
+            onClick={() => setActiveTab('cardImport')}
+          >
+            <CreditCard size={16} />
+            <span>Importar Fatura de Cartão</span>
+          </button>
+
+          <button
             className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
             onClick={() => setActiveTab('settings')}
             style={{ position: 'relative' }}
@@ -173,12 +189,7 @@ export default function App() {
             dreData={dreData}
             setDreData={setDreData}
             dreDatabase={dreDatabase}
-            onSaveDREMonth={(data) => {
-              const updatedDb = { ...dreDatabase, [data.monthId]: data };
-              setDreDatabase(updatedDb);
-              localStorage.setItem('isp_dre_database', JSON.stringify(updatedDb));
-              setDreData(data);
-            }}
+            onSaveDREMonth={handleSaveDREMonth}
             onDeleteDREMonth={(monthId) => {
               if (window.confirm("Tem certeza que deseja excluir o histórico deste mês?")) {
                 const updatedDb = { ...dreDatabase };
@@ -211,6 +222,14 @@ export default function App() {
               </button>
             </div>
           )
+        )}
+
+        {activeTab === 'cardImport' && (
+          <CardStatementImport
+            dreDatabase={dreDatabase}
+            mapping={mapping}
+            onSaveDREMonth={handleSaveDREMonth}
+          />
         )}
 
         {activeTab === 'settings' && (
